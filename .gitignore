@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# STM32CubeIDE build outputs
+Debug/
+Release/
+build/
+
+# Compiled firmware files
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+
+# KiCad temporary and backup files
+*-backups/
+_autosave-*
+*.kicad_sch-bak
+*.kicad_pcb-bak
+*.lck
+*.lck.*
+fp-info-cache
+*.kicad_prl

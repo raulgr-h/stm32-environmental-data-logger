@@ -1,0 +1,20 @@
+* text=auto
+
+*.c text
+*.h text
+*.md text
+*.txt text
+*.csv text
+*.ioc text
+*.kicad_pro text
+*.kicad_sch text
+*.kicad_pcb text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.pptx binary
+*.elf binary
+*.hex binary
+*.bin binary
