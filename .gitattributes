@@ -18,3 +18,9 @@
 *.elf binary
 *.hex binary
 *.bin binary
+
+*.step binary
+*.stp binary
+*.wrl binary
+*.kicad_mod text
+*.kicad_sym text
