@@ -53,6 +53,7 @@ volatile DWORD dbg_last_write_sector = 0;
 volatile UINT  dbg_last_write_count = 0;
 volatile uint8_t dbg_last_write_resp = 0xFF;
 volatile uint8_t dbg_last_read_token = 0xFF;
+volatile uint32_t dbg_spi_fail_count = 0;
 
 /* Function prototypes required by FatFs */
 DSTATUS USER_initialize(BYTE pdrv);
@@ -94,7 +95,10 @@ static void SD_Deselect(void)
 static uint8_t SPI_TxRx(uint8_t data)
 {
     uint8_t rx = 0xFF;
-    HAL_SPI_TransmitReceive(&hspi2, &data, &rx, 1, 100);
+    HAL_StatusTypeDef s = HAL_SPI_TransmitReceive(&hspi2, &data, &rx, 1, 100);
+    if (s != HAL_OK) {
+        dbg_spi_fail_count++; // add this debug var
+    }
     return rx;
 }
 
@@ -108,19 +112,15 @@ static void SD_SendDummyClocks(void)
     }
 }
 
-static uint8_t SD_WaitReady(uint32_t timeout)
+static uint8_t SD_WaitReady(uint32_t timeout_ms)
 {
+    uint32_t start = HAL_GetTick();
     uint8_t r;
 
-    do
-    {
+    do {
         r = SPI_TxRx(0xFF);
-
-        if (r == 0xFF)
-        {
-            return 1;
-        }
-    } while (timeout--);
+        if (r == 0xFF) return 1;
+    } while ((HAL_GetTick() - start) < timeout_ms);
 
     return 0;
 }
@@ -292,6 +292,11 @@ DSTATUS USER_initialize(BYTE pdrv)
 
     if (SD_InitCard())
     {
+        /* Speed up SPI for data phase now that init handshake is done */
+        HAL_SPI_DeInit(&hspi2);
+        hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4; // ~1 MHz at 4MHz MSI, adjust as needed
+        HAL_SPI_Init(&hspi2);
+
         Stat = 0;
         return Stat;
     }
