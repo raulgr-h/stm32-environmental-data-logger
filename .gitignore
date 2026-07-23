@@ -23,3 +23,8 @@ _autosave-*
 *.lck.*
 fp-info-cache
 *.kicad_prl
+
+# STM32CubeIDE user-specific debugger state
+firmware/.settings/com.st.stm32cube.ide.mcu.sfrview.prefs
+
+firmware/*.launch
