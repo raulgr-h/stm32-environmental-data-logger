@@ -5,7 +5,7 @@
 	(uuid "b851507b-c252-43fa-b940-50ee3b5ac769")
 	(paper "B")
 	(title_block
-		(title "STM32 SHT41 Environmental Logger")
+		(title "STM32 Environmental Logger")
 		(date "2026-06-23")
 		(rev "A")
 	)
