@@ -1,4 +1,4 @@
-\# STM32L431 Environmental Data Logger
+# STM32L431 Environmental Data Logger
 
 
 
@@ -10,7 +10,7 @@ The project includes a custom KiCad PCB, STM32CubeIDE firmware, low-level periph
 
 
 
-\## Current Status
+## Current Status
 
 
 
@@ -22,19 +22,19 @@ Verified functionality includes:
 
 
 
-\- STM32L431 firmware execution and SWD debugging
+- STM32L431 firmware execution and SWD debugging
 
-\- SHT41 temperature and humidity measurements over I2C
+- SHT41 temperature and humidity measurements over I2C
 
-\- SPI-mode microSD initialization
+- SPI-mode microSD initialization
 
-\- FatFs mount, file open, write, sync, and close operations
+- FatFs mount, file open, write, sync, and close operations
 
-\- Continuous temperature and humidity logging to PC-readable CSV files
+- Continuous temperature and humidity logging to PC-readable CSV files
 
-\- Multi-hour logging operation
+- Multi-hour logging operation
 
-\- Zero observed SPI transfer failures during verified testing
+- Zero observed SPI transfer failures during verified testing
 
 
 
@@ -42,29 +42,29 @@ LCD integration, user controls, low-power periodic logging, enclosure developmen
 
 
 
-\## System Architecture
+## System Architecture
 
 
 
-\- \*\*Microcontroller:\*\* STM32L431CBT6
+- **Microcontroller:** STM32L431CBT6
 
-\- \*\*Sensor:\*\* Sensirion SHT41 over I2C
+- **Sensor:** Sensirion SHT41 over I2C
 
-\- \*\*Storage:\*\* microSD over SPI
+- **Storage:** microSD over SPI
 
-\- \*\*Filesystem:\*\* FatFs
+- **Filesystem:** FatFs
 
-\- \*\*Firmware:\*\* Embedded C using STM32 HAL
+- **Firmware:** Embedded C using STM32 HAL
 
-\- \*\*PCB design:\*\* KiCad
+- **PCB design:** KiCad
 
-\- \*\*Development environment:\*\* STM32CubeIDE
+- **Development environment:** STM32CubeIDE
 
-\- \*\*Test equipment:\*\* Digilent Analog Discovery 2, DMM, logic analyzer, oscilloscope
+- **Test equipment:** Digilent Analog Discovery 2, DMM, logic analyzer, oscilloscope
 
 
 
-\## Firmware
+## Firmware
 
 
 
@@ -72,23 +72,23 @@ The firmware includes:
 
 
 
-\- SHT41 command and measurement handling
+- SHT41 command and measurement handling
 
-\- Low-level SPI communication
+- Low-level SPI communication
 
-\- SD card initialization using CMD0, CMD8, CMD55, ACMD41, and CMD58
+- SD card initialization using CMD0, CMD8, CMD55, ACMD41, and CMD58
 
-\- Single-block sector access using CMD17 and CMD24
+- Single-block sector access using CMD17 and CMD24
 
-\- FatFs disk I/O integration
+- FatFs disk I/O integration
 
-\- CSV file creation, append, synchronization, and closure
+- CSV file creation, append, synchronization, and closure
 
-\- SPI error instrumentation and timeout handling
+- SPI error instrumentation and timeout handling
 
 
 
-\## Verification
+## Verification
 
 
 
@@ -100,23 +100,23 @@ Key verified results:
 
 
 
-\- `FR\_OK` returned for mount, open, write, sync, and close operations
+- `FR\_OK` returned for mount, open, write, sync, and close operations
 
-\- `HAL\_OK` returned for SHT41 communication
+- `HAL\_OK` returned for SHT41 communication
 
-\- Successful CMD17 read transaction with valid response and data token
+- Successful CMD17 read transaction with valid response and data token
 
-\- Successful SD write operation
+- Successful SD write operation
 
-\- Stable 3.3 V rail during startup and SD activity
+- Stable 3.3 V rail during startup and SD activity
 
-\- PC-readable CSV output
+- PC-readable CSV output
 
-\- Multi-hour logging without observed SPI failures
+- Multi-hour logging without observed SPI failures
 
 
 
-\## Debugging Case Study: SD Logging Failure
+## Debugging Case Study: SD Logging Failure
 
 
 
@@ -132,11 +132,11 @@ The final fix included:
 
 
 
-\- Increasing the SPI clock after SD initialization
+- Increasing the SPI clock after SD initialization
 
-\- Replacing iteration-based ready polling with `HAL\_GetTick()`-based timeouts
+- Replacing iteration-based ready polling with `HAL\_GetTick()`-based timeouts
 
-\- Adding SPI transfer failure instrumentation
+- Adding SPI transfer failure instrumentation
 
 
 
@@ -144,7 +144,7 @@ After the fix, file open, write, sync, and close operations completed successful
 
 
 
-\## Repository Structure
+## Repository Structure
 
 
 
