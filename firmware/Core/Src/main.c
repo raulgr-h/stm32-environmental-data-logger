@@ -9,11 +9,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
-#include <string.h>
-#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -25,6 +27,10 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define RTC_BKP_MAGIC 0x32F2U
+#define LOG_INTERVAL_MS 5000U
+#define BUTTON_DEBOUNCE_MS 30U
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -35,6 +41,8 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+RTC_HandleTypeDef hrtc;
+
 SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
@@ -44,6 +52,11 @@ volatile FRESULT open_res  = 99;
 volatile FRESULT write_res = 99;
 volatile FRESULT sync_res  = 99;
 volatile FRESULT close_res = 99;
+volatile uint8_t logging_enabled = 0;
+volatile GPIO_PinState button_state_dbg = GPIO_PIN_SET;
+volatile uint32_t button_press_count = 0;
+
+uint32_t last_sample_ms = 0;
 
 volatile HAL_StatusTypeDef sht_res = HAL_ERROR;
 volatile int temp_x100_dbg = 0;
@@ -53,6 +66,12 @@ volatile uint32_t sample_count = 0;
 UINT bytes_written = 0;
 FIL file;
 
+GPIO_PinState button_raw = GPIO_PIN_SET;
+GPIO_PinState button_stable = GPIO_PIN_SET;
+GPIO_PinState button_last_raw = GPIO_PIN_SET;
+
+uint32_t button_change_ms = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,9 +79,11 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 static HAL_StatusTypeDef SHT41_Read(float *temp_c, float *rh_pct);
+static void LogSampleToSD(void);
 
 /* USER CODE END PFP */
 
@@ -96,6 +117,84 @@ static HAL_StatusTypeDef SHT41_Read(float *temp_c, float *rh_pct)
     if (*rh_pct > 100.0f) *rh_pct = 100.0f;
 
     return HAL_OK;
+}
+
+static void LogSampleToSD(void)
+{
+    char line[96];
+    RTC_TimeTypeDef rtc_time = {0};
+    RTC_DateTypeDef rtc_date = {0};
+    float temp_c = 0.0f;
+    float rh_pct = 0.0f;
+
+    sht_res = SHT41_Read(&temp_c, &rh_pct);
+
+    if (sht_res != HAL_OK)
+    {
+        temp_c = -99.99f;
+        rh_pct = 0.0f;
+    }
+
+    int temp_x100 = (int)(temp_c * 100.0f);
+    int rh_x100   = (int)(rh_pct * 100.0f);
+
+    temp_x100_dbg = temp_x100;
+    rh_x100_dbg = rh_x100;
+
+    HAL_RTC_GetTime(&hrtc, &rtc_time, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &rtc_date, RTC_FORMAT_BIN);
+
+    snprintf(line, sizeof(line),
+             "%lu,20%02u-%02u-%02u %02u:%02u:%02u,%d.%02d,%d.%02d\r\n",
+             (unsigned long)sample_count++,
+             rtc_date.Year, rtc_date.Month, rtc_date.Date,
+             rtc_time.Hours, rtc_time.Minutes, rtc_time.Seconds,
+             temp_x100 / 100, abs(temp_x100 % 100),
+             rh_x100 / 100, abs(rh_x100 % 100));
+
+    open_res = 99;
+    write_res = 99;
+    sync_res = 99;
+    close_res = 99;
+    bytes_written = 0;
+
+    if (mount_res == FR_OK)
+    {
+        open_res = f_open(&file, "log.csv",
+                          FA_OPEN_APPEND | FA_WRITE);
+
+        if (open_res == FR_OK)
+        {
+            FRESULT header_res = FR_OK;
+            UINT header_bytes = 0;
+
+            if (f_size(&file) == 0)
+            {
+                const char *header =
+                    "sample,timestamp,temp_C,rh_pct\r\n";
+
+                header_res = f_write(&file,
+                                     header,
+                                     strlen(header),
+                                     &header_bytes);
+            }
+
+            if (header_res == FR_OK)
+            {
+                write_res = f_write(&file,
+                                    line,
+                                    strlen(line),
+                                    &bytes_written);
+
+                if (write_res == FR_OK)
+                {
+                    sync_res = f_sync(&file);
+                }
+            }
+
+            close_res = f_close(&file);
+        }
+    }
 }
 
 /* Keep SD/SPI command functions out of main.c.
@@ -135,6 +234,7 @@ int main(void)
   MX_SPI2_Init();
   MX_I2C1_Init();
   MX_FATFS_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 
   mount_res = 99;
@@ -146,6 +246,13 @@ int main(void)
 
   f_mount(NULL, USERPath, 0);
   mount_res = f_mount(&USERFatFS, USERPath, 1);
+
+  button_raw = HAL_GPIO_ReadPin(BTN_LCD_WAKE_N_GPIO_Port,
+                               BTN_LCD_WAKE_N_Pin);
+
+  button_stable = button_raw;
+  button_last_raw = button_raw;
+  button_change_ms = HAL_GetTick();
 
   /* Put breakpoint here */
   __NOP();
@@ -160,71 +267,49 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    char line[64];
-    float temp_c = 0.0f;
-    float rh_pct = 0.0f;
+	  uint32_t now = HAL_GetTick();
 
-    sht_res = SHT41_Read(&temp_c, &rh_pct);
+	  button_raw = HAL_GPIO_ReadPin(BTN_LCD_WAKE_N_GPIO_Port,
+	                               BTN_LCD_WAKE_N_Pin);
 
-    if (sht_res != HAL_OK)
-    {
-        temp_c = -99.99f;
-        rh_pct = 0.0f;
-    }
+	  /* Restart debounce timer whenever the raw input changes */
+	  if (button_raw != button_last_raw)
+	  {
+	      button_last_raw = button_raw;
+	      button_change_ms = now;
+	  }
 
-    int temp_x100 = (int)(temp_c * 100.0f);
-    int rh_x100   = (int)(rh_pct * 100.0f);
+	  /* Accept the state only after it remains stable */
+	  if (((now - button_change_ms) >= BUTTON_DEBOUNCE_MS) &&
+	      (button_raw != button_stable))
+	  {
+	      button_stable = button_raw;
 
-    temp_x100_dbg = temp_x100;
-    rh_x100_dbg = rh_x100;
+	      /* Toggle only on the debounced press edge */
+	      if (button_stable == GPIO_PIN_RESET)
+	      {
+	          logging_enabled ^= 1U;
+	          button_press_count++;
 
-    snprintf(line, sizeof(line),
-             "%lu,%lu,%d.%02d,%d.%02d\r\n",
-             sample_count++,
-             HAL_GetTick(),
-             temp_x100 / 100, temp_x100 % 100,
-             rh_x100 / 100, rh_x100 % 100);
+	          if (logging_enabled)
+	          {
+	              LogSampleToSD();
+	              last_sample_ms = now;
+	          }
+	      }
+	  }
 
-    open_res = 99;
-    write_res = 99;
-    sync_res = 99;
-    close_res = 99;
-    bytes_written = 0;
+	  if (logging_enabled &&
+	      ((now - last_sample_ms) >= LOG_INTERVAL_MS))
+	  {
+	      last_sample_ms = now;
+	      LogSampleToSD();
+	  }
 
-    if (mount_res == FR_OK)
-    {
-        open_res = f_open(&file, "log.csv", FA_OPEN_APPEND | FA_WRITE);
+	  HAL_Delay(1);
 
-        if (open_res == FR_OK)
-        {
-            FRESULT header_res = FR_OK;
-            UINT header_bytes = 0;
-
-            if (f_size(&file) == 0)
-            {
-            	const char *header = "sample,time_ms,temp_C,rh_pct\r\n";
-                header_res = f_write(&file, header, strlen(header), &header_bytes);
-            }
-
-            if (header_res == FR_OK)
-            {
-                write_res = f_write(&file, line, strlen(line), &bytes_written);
-
-                if (write_res == FR_OK)
-                {
-                    sync_res = f_sync(&file);
-                }
-            }
-
-            close_res = f_close(&file);
-        }
-    }
-
-    __NOP();
-    HAL_Delay(5000);
-
-    /* USER CODE END 3 */
-  }
+  /* USER CODE END 3 */
+}
 }
 
 /**
@@ -246,7 +331,8 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
@@ -316,6 +402,74 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+
+
+  /* USER CODE END RTC_Init 1 */
+
+  /** Initialize RTC Only
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+  hrtc.Init.AsynchPrediv = 127;
+  hrtc.Init.SynchPrediv = 249;
+  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
+  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* USER CODE BEGIN Check_RTC_BKUP */
+  if (HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR0) != RTC_BKP_MAGIC)
+  {
+  /* USER CODE END Check_RTC_BKUP */
+
+  /** Initialize RTC and set the Time and Date
+  */
+  sTime.Hours = 0x0;
+  sTime.Minutes = 0x0;
+  sTime.Seconds = 0x0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
+  sDate.Month = RTC_MONTH_AUGUST;
+  sDate.Date = 0x2;
+  sDate.Year = 0x26;
+
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+      HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR0, RTC_BKP_MAGIC);
+  }
+  /* USER CODE END RTC_Init 2 */
 
 }
 

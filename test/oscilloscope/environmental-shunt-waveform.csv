@@ -1,0 +1,22 @@
+#Digilent WaveForms Oscilloscope Measurements
+#Device Name: Discovery2
+#Serial Number: SN:210321B80DE4
+#Date Time: 2026-08-06 22:46:36.892
+#Sample rate: 500000Hz
+#Samples: 10000000
+#Trigger: Source: Channel 1 Type: Edge Condition: Rising Level: 0 V Hyst.: Auto HoldOff: 0 s
+#Channel 1: Range: 5 mV/div Offset: -20 mV Sample Mode: Average
+#Channel 2: Range: 100 mV/div Offset: -3.04 V Sample Mode: Average
+#Power Supplies: OFF
+#Positive Supply: Rdy
+#Voltage: 3.3 V
+#Negative Supply: OFF
+#Voltage: -1 V
+
+,Extent,Name
+C1,High, 24.836 mV
+C1,Peak2Peak, 34.941 mV
+C1,Average, 2.1034 mV
+C2,Minimum, 2.8723 V
+C2,Average, 3.2785 V
+C2,Peak2Peak, 422.91 mV
