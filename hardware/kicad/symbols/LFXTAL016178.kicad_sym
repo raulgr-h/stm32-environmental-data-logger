@@ -1,0 +1,56 @@
+
+(kicad_symbol_lib (version 20211014) (generator kicad_symbol_editor)
+  (symbol "LFXTAL016178" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+    (property "Reference" "Y" (id 0) (at -0.16 2.516 0)
+      (effects (font (size 1.27 1.27)) (justify bottom))
+    )
+    (property "Value" "LFXTAL016178" (id 1) (at -2.66 -3.04 0)
+      (effects (font (size 1.27 1.27)) (justify bottom left))
+    )
+    (property "Footprint" "LFXTAL016178:WE-XTAL_LFXTAL016178" (id 2) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (symbol "LFXTAL016178_0_0"
+      (polyline
+        (pts (xy 1.016 0.0) (xy 2.54 0.0)) (stroke (width 0.1524))
+      )
+      (polyline
+        (pts (xy -2.54 0.0) (xy -1.016 0.0)) (stroke (width 0.1524))
+      )
+      (polyline
+        (pts (xy -0.381 1.524) (xy -0.381 -1.524)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -0.381 -1.524) (xy 0.381 -1.524)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy 0.381 -1.524) (xy 0.381 1.524)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy 0.381 1.524) (xy -0.381 1.524)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy 1.016 1.378) (xy 1.016 -1.378)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -1.016 1.378) (xy -1.016 -1.378)) (stroke (width 0.254))
+      )
+      (pin passive line (at 2.54 0.0 180.0) (length 0)
+        (name "~"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "4"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin passive line (at -2.54 0.0 0) (length 0)
+        (name "~"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+    )
+  )
+)
