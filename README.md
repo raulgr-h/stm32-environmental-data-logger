@@ -1,161 +1,127 @@
 # STM32L431 Environmental Data Logger
 
-A custom embedded environmental data logger built around the STM32L431
-microcontroller. The system measures temperature and relative humidity using
-an SHT41 sensor over I2C and records RTC-timestamped measurements to a microSD
-card over SPI using FatFs.
+A custom embedded environmental data logger built around the STM32L431 microcontroller.
 
-The project includes a custom assembled KiCad PCB, STM32CubeIDE firmware,
-low-level peripheral drivers, RTC timekeeping, button-controlled logging,
-board bring-up, protocol analysis, long-duration CSV logging, current/power
-characterization, and documented hardware/firmware debugging.
+The project began as a hand-assembled Rev A PCB that measures temperature and relative humidity using an SHT41 sensor over I2C and records RTC-timestamped measurements to removable storage. Rev A was brought through hardware bring-up, firmware integration, long-duration logging, protocol verification, and electrical characterization.
+
+Development has now progressed into a Rev B redesign informed by measured Rev A behavior, with emphasis on lower-power operation, improved storage architecture, BLE connectivity, and more systematic hardware validation.
+
+---
 
 ## Current Status
 
-The custom PCB has been assembled and fully brought up. Power, SWD, GPIO,
-clocking, I2C, SPI, sensor communication, microSD storage, RTC timekeeping,
-and timestamped CSV logging have been verified.
+### Rev A — Functional and Characterized
+
+The assembled Rev A PCB has been successfully brought up and the core environmental logging system is operational.
 
 Verified functionality includes:
-
-- STM32L431 firmware execution and SWD debugging
-- SHT41 temperature and humidity measurements over I2C
-- SPI-mode microSD initialization and sector access
-- FatFs mount, file open, append, write, sync, and close operations
-- RTC-based timestamped CSV logging
-- Push-button-controlled logging using a nonblocking debounce/state machine
-- Long-duration logging to PC-readable CSV files
-- Zero observed SPI transfer failures during verified runs
-- Board-level current characterization during periodic sensor/SD activity
-
-LCD integration, expanded user-interface controls, low-power/sleep
-optimization, CR2032 operation, enclosure development, FRAM integration,
-and battery-life characterization remain future work.
-
-
-
-Verified functionality includes:
-
-
 
 - STM32L431 firmware execution and SWD debugging
 - SHT41 temperature and humidity measurements over I2C
 - SPI-mode microSD initialization
-- FatFs mount, file open, write, sync, and close operations
-- Continuous temperature and humidity logging to PC-readable CSV files
+- FatFs filesystem integration
+- RTC-based timestamp generation
+- Timestamped CSV logging
+- Button-controlled logging behavior
 - Multi-hour logging operation
-- Zero observed SPI transfer failures during verified testing
+- PC-readable logged data
+- Logic-analyzer and oscilloscope verification of digital interfaces
+- Automated power-source and transient-load characterization
 
+Rev A now serves as the validated hardware baseline for the Rev B redesign.
 
+### Rev B — In Development
 
-LCD integration, user controls, low-power periodic logging, enclosure development, and battery-life characterization remain future work.
+Rev B is being developed from Rev A test results and system-level lessons.
 
+Planned and in-progress changes include:
 
+- Replacement of the microSD subsystem with SPI nonvolatile memory
+- M95P16 serial Page EEPROM integration
+- 32.768 kHz LSE crystal for improved low-power RTC operation
+- CYBLE-416045-02 BLE module integration
+- BLE UART interface to the STM32
+- Dedicated BLE programming/debug access
+- Improved low-power architecture
+- Updated user controls
+- PCB changes informed by measured battery and transient-load behavior
+
+Rev B schematic development is maintained separately from the archived Rev A hardware baseline.
+
+---
 
 ## System Architecture
 
-
+### Rev A
 
 - **Microcontroller:** STM32L431CBT6
-- **Sensor:** Sensirion SHT41 over I2C
+- **Environmental sensor:** Sensirion SHT41 over I2C
 - **Storage:** microSD over SPI
 - **Filesystem:** FatFs
+- **Timekeeping:** STM32 RTC
 - **Firmware:** Embedded C using STM32 HAL
 - **PCB design:** KiCad
 - **Development environment:** STM32CubeIDE
-- **Test equipment:** Digilent Analog Discovery 2, DMM, logic analyzer, oscilloscope
+- **Test equipment:** Digilent Analog Discovery 2, DMM, oscilloscope, and logic analyzer
 
+### Rev B Development
 
+- **Microcontroller:** STM32L431CBT6
+- **Environmental sensor:** Sensirion SHT41
+- **Nonvolatile storage:** ST M95P16 SPI Page EEPROM
+- **Wireless interface:** Infineon CYBLE-416045-02 BLE module
+- **BLE host interface:** UART
+- **RTC reference:** External 32.768 kHz LSE crystal
+- **Hardware design:** KiCad
+
+---
 
 ## Firmware
 
-The firmware includes:
+Rev A firmware development includes:
 
+- STM32 HAL peripheral initialization
 - SHT41 command and measurement handling
-- Low-level SPI SD card communication
-- SD initialization using CMD0, CMD8, CMD55, ACMD41, and CMD58
-- Sector-level SD card access
+- Low-level SPI communication
+- SD card initialization using CMD0, CMD8, CMD55, ACMD41, and CMD58
+- Single-block SD sector access using CMD17 and CMD24
 - FatFs disk I/O integration
+- CSV file creation, append, synchronization, and closure
 - RTC initialization and timestamp generation
-- Backup-register logic for RTC state handling
-- Timestamped CSV file creation and append operations
-- Nonblocking push-button debounce and logging-state control
-- Reusable sensor-to-storage logging routines
-- SPI error instrumentation and timeout handling
+- Backup-domain handling
+- Button input handling and nonblocking control logic
+- SPI error instrumentation
+- Timeout and failure handling
 
+Rev B firmware development will extend the system with EEPROM storage, additional low-power behavior, and communication with a BLE coprocessor.
 
+---
 
-## Verification
+## Automated Test and Characterization
 
-The system was verified using STM32CubeIDE debugger variables, DMM and
-continuity measurements, oscilloscope measurements, Analog Discovery 2
-logic/protocol captures, CSV inspection, and board-level current measurement.
+A Python-based automated test environment was developed using the Digilent WaveForms SDK and Analog Discovery 2.
 
-Key verified results:
+The test system controls external transistor-switched loads while synchronously capturing battery and PCB voltage behavior.
 
-- `FR_OK` for successful FatFs mount, open, write, sync, and close operations
-- `HAL_OK` for verified SHT41 communication
-- Successful SD initialization and CMD17 read transactions
-- Detailed SHT41 I2C transaction verification
-- RTC-timestamped, PC-readable CSV output
-- Button input correlated with subsequent sensor sampling and microSD activity
-- Long-duration logging with zero observed SPI failures during verified runs
-- Approximately 2.1 mA average board current during 5 s interval logging
-- Sampled transient current peaks of approximately 25 mA at 500 kHz during
-  sensor and microSD activity
-- Correlated VDD droop during current transients while CSV writes remained
-  successful
+Capabilities include:
 
+- Automated programmable load selection
+- Configurable pulse durations
+- Repeated transient tests
+- Synchronized analog waveform acquisition
+- Battery-voltage monitoring
+- Current estimation from shunt measurements
+- Minimum-voltage and droop detection
+- Recovery-voltage analysis
+- Pulse timing validation
+- Acquisition-integrity checks
+- Per-test waveform CSV generation
+- Reduced summary metrics
+- Automated low-voltage safety shutdown
 
+Testing was used to characterize the CR2032-powered Rev A system under transient load conditions and provide measured input to Rev B design decisions.
 
-## Debugging Case Studies: 
-
-
-### SD Logging Failure
-
-During bring-up, the SD card ground connection measured approximately 5 MΩ because of a poor solder joint. The issue was isolated using resistance and continuity measurements, then corrected by reflowing the affected connection.
-
-A later firmware issue caused the first FatFs write operation to appear to hang. The root cause was that SPI remained at the slow initialization clock after SD startup, while the driver used iteration-count-based ready timeouts.
-
-
-### CubeMX Regeneration Regression
-
-A later STM32CubeMX regeneration overwrote the custom `user_diskio.c`
-implementation, causing FatFs operations to return `FR_NOT_READY`.
-
-The regression was isolated using runtime return-code instrumentation and Git
-revision/diff analysis. Restoring the custom disk-I/O implementation recovered
-normal SD and FatFs operation.
-
-
-
-The final fix included:
-
-
-
-- Increasing the SPI clock after SD initialization
-- Replacing iteration-based ready polling with `HAL\_GetTick()`-based timeouts
-- Adding SPI transfer failure instrumentation
-
-
-
-After the fix, file open, write, sync, and close operations completed successfully.
-
-
-
-## Repository Structure
-
-
+Primary ATE scripts are maintained under:
 
 ```text
-
-hardware/       KiCad source, renders, and manufacturing outputs
-
-firmware/       STM32CubeIDE project and embedded firmware
-
-docs/           Bring-up notes, images, and verification documentation
-
-test/           Sample data and test procedures
-
-releases/       Release-related documentation
-
+test/scripts/ate/
